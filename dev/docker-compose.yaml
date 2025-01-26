@@ -1,0 +1,56 @@
+services:
+  postgres:
+    container_name: ${POSTGRES_NAME}
+    image: postgres
+    environment:
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+      - POSTGRES_DB
+      - POSTGRES_PORT
+    networks:
+      - postgres
+
+  backend:
+    container_name: ${BACKEND_NAME}
+    build:
+      context: ../
+      dockerfile: ./src/Dockerfile
+    ports:
+      - "${BACKEND_PORT}:${BACKEND_PORT}"
+    volumes:
+      - ../:/app
+    environment:
+      - BACKEND_HOST
+      - BACKEND_PORT
+      - BACKEND_RELOAD
+      - BACKEND_WORKERS
+      - BACKEND_CORS
+      - POSTGRES_SERVICE
+      - TIMEZONE
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONPATH=/app
+    depends_on:
+      - postgres
+    networks:
+      - postgres
+      - backend
+
+  backend-test:
+    extends: backend
+    container_name: "${BACKEND_NAME}-test"
+    build:
+      context: ../
+      dockerfile: ./test/Dockerfile
+    volumes:
+      - ../:/app
+    ports: !reset []
+    command: bash -c "find /app test | entr -n pytest test"
+    networks:
+      - backend
+
+networks:
+  postgres:
+    driver: bridge
+  backend:
+    driver: bridge
